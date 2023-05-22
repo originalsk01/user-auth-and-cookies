@@ -23,7 +23,29 @@ router.post("/signup", async function (req, res) {
   const enteredConfirmEmail = userData["confirm-email"];
   const enteredPassword = userData.password;
 
-  const hashedPassword = await bcrypt.hash(enteredEmail, 12);
+  if (
+    !enteredEmail ||
+    !enteredConfirmEmail ||
+    !enteredPassword ||
+    enteredPassword.trim() < 6 ||
+    enteredEmail !== enteredConfirmEmail ||
+    !enteredEmail.includes("@")
+  ) {
+    console.log("Incorrect Data");
+    return res.redirect("/signup");
+  }
+
+  const existingUser = await db
+    .getDb()
+    .collection("users")
+    .findOne({ email: enteredEmail });
+
+  if (existingUser) {
+    console.log("User already exists");
+    return res.redirect("/signup");
+  }
+
+  const hashedPassword = await bcrypt.hash(enteredPassword, 12);
 
   const user = {
     email: enteredEmail,
@@ -35,9 +57,37 @@ router.post("/signup", async function (req, res) {
   res.redirect("/login");
 });
 
-router.post("/login", async function (req, res) {});
+router.post("/login", async function (req, res) {
+  const userData = req.body;
+  const enteredEmail = userData.email;
+  const enteredPassword = userData.password;
+
+  const existingUser = await db
+    .getDb()
+    .collection("users")
+    .findOne({ email: enteredEmail });
+
+  if (!existingUser) {
+    console.log("Couldn't log in");
+    return res.redirect("/login");
+  }
+
+  const passwordsAreEqual = await bcrypt.compare(
+    enteredPassword,
+    existingUser.password
+  );
+
+  if (!passwordsAreEqual) {
+    console.log("Passwords are not equal!");
+    return res.redirect("/login");
+  }
+
+  console.log("User is Authenticated!");
+  res.redirect("/admin");
+});
 
 router.get("/admin", function (req, res) {
+  // Check the user ticket if it is valid
   res.render("admin");
 });
 
